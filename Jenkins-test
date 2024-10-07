@@ -6,10 +6,13 @@ pipeline {
   stages {
     stage('Scan') {
       steps {
-        withSonarQubeEnv(installationName: 'SonarQube') { 
-          sh './mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar -Dsonar.projectKey="javawebapp" -Dsonar.login="admin" -Dsonar.password="Admin_password123"'
+        withCredentials([usernamePassword(credentialsId: 'SonarQubeToken', usernameVariable: 'SONAR_USER', passwordVariable: 'SONAR_PASS')]) {
+          withSonarQubeEnv('SonarQube') { 
+            sh './mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar -Dsonar.projectKey="javawebapp" -Dsonar.login="$SONAR_USER" -Dsonar.password="$SONAR_PASS"'
+          }
         }
       }
     }
   }
 }
+
