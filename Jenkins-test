@@ -19,7 +19,8 @@ pipeline {
         timeout(time: 1, unit: 'HOURS') {
           script {
             def qg = waitForQualityGate() // Checks SonarQube quality gate
-            println "Quality Gate result: ${qg}"
+            println "Quality Gate result: ${qg.status}"  // 打印 qg 的状态
+            println "Full Quality Gate result: ${qg}"  // 打印 qg 的完整内容
             if (qg.status != 'SUCCESS') {
               error "Pipeline aborted due to quality gate failure: ${qg.status}"
             }
