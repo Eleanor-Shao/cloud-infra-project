@@ -1,6 +1,8 @@
 pipeline {
-  docker {
+  agent {
+    docker {
       image 'python:3.8' // 使用带有 Python 的 Docker 镜像
+    }
   }
   options {
     buildDiscarder(logRotator(numToKeepStr: '5'))
