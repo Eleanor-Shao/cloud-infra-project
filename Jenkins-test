@@ -33,7 +33,7 @@ pipeline {
       steps {
         script {
           // 调用SonarQube API获取分析结果
-          sh 'curl -u $SONAR_USER:$SONAR_PASS "https://34.67.230.35:9000/api/issues/search?projectKeys=javawebapp" -o sonarqube_issues.json'
+          sh 'curl -k -u $SONAR_USER:$SONAR_PASS "http://34.67.230.35:9000/api/issues/search?projectKeys=javawebapp" -o sonarqube_issues.json'
 
           // 调用Python脚本将结果格式化为MapReduce可处理的格式
           sh 'python format_sonarqube_issues.py sonarqube_issues.json sonarqube_issues.txt'
