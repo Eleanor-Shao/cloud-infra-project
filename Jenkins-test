@@ -56,40 +56,17 @@ pipeline {
             sh """
               gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
               gcloud dataproc jobs submit hadoop \
-                --cluster=hadoop-cluster \  // 替换为你的集群名称
-                --region=us-central1 \      // 替换为你的区域
-                --jar=gs://hadoop-storage-bucket-final-project-437823/wordcount-1.0-SNAPSHOT.jar \  // 替换为你的JAR文件路径
-                --class=WordCount \  // 替换为你的MapReduce主类的全限定名称
-                -- gs://hadoop-storage-bucket-final-project-437823/input-data/ gs://hadoop-storage-bucket-final-project-437823/output-data/  // 替换为你的输入和输出路径
+                --cluster=hadoop-cluster \  
+                --region=us-central1 \      
+                --jar=gs://hadoop-storage-bucket-final-project-437823/wordcount-1.0-SNAPSHOT.jar \  
+                --class=WordCount \ 
+                -- gs://hadoop-storage-bucket-final-project-437823/input-data/ gs://hadoop-storage-bucket-final-project-437823/output-data/  
             """
           }
         }
       }
     }
   
-    stage('Deploy to Dataproc') {
-      when {
-        expression {
-          return currentBuild.result == null || currentBuild.result == 'SUCCESS'
-        }
-      }
-      steps {
-        withCredentials([file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-          script {
-            // Authenticate and submit the Hadoop job to Google Dataproc
-            sh """
-              gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-              gcloud dataproc jobs submit hadoop \
-                --cluster=hadoop-cluster \  // Replace with your actual cluster name
-                --region=us-central1 \      // Replace with the region from your main.tf
-                --jar=gs://hadoop-storage-bucket-final-project-437823/wordcount-1.0-SNAPSHOT.jar \  // Replace with actual JAR file path
-                --class=com.example.hadoop.WordCount \  // Replace with your actual MapReduce class
-                -- gs://my-bucket/input-data/ gs://my-bucket/output-data/  // Replace with your input/output paths in GCS
-            """
-          }
-        }
-      }
-    }
   }
 }
 
