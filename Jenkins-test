@@ -53,15 +53,7 @@ pipeline {
         withCredentials([file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
           script {
             // 验证GCP并提交Hadoop MapReduce任务
-            sh """
-              gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-              gcloud dataproc jobs submit hadoop \
-                --cluster=hadoop-cluster \  
-                --region=us-central1 \      
-                --jar=gs://hadoop-storage-bucket-final-project-437823/wordcount-1.0-SNAPSHOT.jar \  
-                --class=WordCount \ 
-                -- gs://hadoop-storage-bucket-final-project-437823/input-data/ gs://hadoop-storage-bucket-final-project-437823/output-data/  
-            """
+            sh 'gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && gcloud dataproc jobs submit hadoop --cluster=hadoop-cluster --region=us-central1 --jar=gs://hadoop-storage-bucket-final-project-437823/wordcount-1.0-SNAPSHOT.jar --class=WordCount gs://hadoop-storage-bucket-final-project-437823/input-data/ gs://hadoop-storage-bucket-final-project-437823/output-data/'
           }
         }
       }
