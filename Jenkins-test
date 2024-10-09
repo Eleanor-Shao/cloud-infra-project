@@ -1,9 +1,11 @@
 pipeline {
-  agent {
-    docker {
-      image 'python:3.8' // 使用带有 Python 的 Docker 镜像
-    }
-  }
+  agent any
+  // agent {
+  //       docker {
+  //           image 'python:3.8'  // 使用 Python 3.8 官方 Docker 镜像
+  //           args '-u root'      // 允许 Jenkins 以 root 用户运行，必要时可以安装软件包
+  //       }
+  //   }
   options {
     buildDiscarder(logRotator(numToKeepStr: '5'))
   }
@@ -33,37 +35,37 @@ pipeline {
     //   }
     // }
     // 格式化SonarQube结果，上传到GCS
-    stage('Process SonarQube Results') {
-      steps {
-        script {
-          // 调用SonarQube API获取分析结果
-          sh 'curl -k -u $SONAR_USER:$SONAR_PASS "http://34.67.230.35:9000/api/issues/search?projectKeys=javawebapp" -o sonarqube_issues.json'
+    // stage('Process SonarQube Results') {
+    //   steps {
+    //     script {
+    //       // 调用SonarQube API获取分析结果
+    //       sh 'curl -k -u $SONAR_USER:$SONAR_PASS "http://34.67.230.35:9000/api/issues/search?projectKeys=javawebapp" -o sonarqube_issues.json'
 
-          // 调用Python脚本将结果格式化为MapReduce可处理的格式
-          sh 'python format_sonarqube_issues.py sonarqube_issues.json sonarqube_issues.txt'
+    //       // 调用Python脚本将结果格式化为MapReduce可处理的格式
+    //       sh 'python format_sonarqube_issues.py sonarqube_issues.json sonarqube_issues.txt'
 
-          // 上传格式化后的SonarQube结果到GCS
-          sh 'gsutil cp sonarqube_issues.txt gs://hadoop-storage-bucket-final-project-437823/input-data/'
-        }
-      }
-    }
+    //       // 上传格式化后的SonarQube结果到GCS
+    //       sh 'gsutil cp sonarqube_issues.txt gs://hadoop-storage-bucket-final-project-437823/input-data/'
+    //     }
+    //   }
+    // }
 
-    // 提交Hadoop MapReduce任务到Google Dataproc
-    stage('Deploy to Dataproc') {
-      when {
-        expression {
-          return currentBuild.result == null || currentBuild.result == 'SUCCESS'
-        }
-      }
-      steps {
-        withCredentials([file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-          script {
-            // 验证GCP并提交Hadoop MapReduce任务
-            sh 'gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && gcloud dataproc jobs submit hadoop --cluster=hadoop-cluster --region=us-central1 --jar=gs://hadoop-storage-bucket-final-project-437823/wordcount-1.0-SNAPSHOT.jar --class=WordCount gs://hadoop-storage-bucket-final-project-437823/input-data/ gs://hadoop-storage-bucket-final-project-437823/output-data/'
-          }
-        }
-      }
-    }
+    // // 提交Hadoop MapReduce任务到Google Dataproc
+    // stage('Deploy to Dataproc') {
+    //   when {
+    //     expression {
+    //       return currentBuild.result == null || currentBuild.result == 'SUCCESS'
+    //     }
+    //   }
+    //   steps {
+    //     withCredentials([file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+    //       script {
+    //         // 验证GCP并提交Hadoop MapReduce任务
+    //         sh 'gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && gcloud dataproc jobs submit hadoop --cluster=hadoop-cluster --region=us-central1 --jar=gs://hadoop-storage-bucket-final-project-437823/wordcount-1.0-SNAPSHOT.jar --class=WordCount gs://hadoop-storage-bucket-final-project-437823/input-data/ gs://hadoop-storage-bucket-final-project-437823/output-data/'
+    //       }
+    //     }
+    //   }
+    // }
   
   }
 }
