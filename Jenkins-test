@@ -26,6 +26,17 @@ pipeline {
         }
       }
     }
+    stage('Authenticate with Google Cloud') {
+        steps {
+            withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                sh '''
+                # 使用服务账户进行身份认证
+                gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+                gcloud config set project ${PROJECT_ID}
+                '''
+            }
+        }
+    }
     stage('Deploy to Hadoop') {
         when {
             expression {
