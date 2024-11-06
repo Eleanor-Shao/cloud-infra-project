@@ -1,30 +1,82 @@
 pipeline {
-    agent any
-    environment {
-        PROJECT_ID = "project-440905"
-    }
-    stages {
-        stage('Retrieve Cloud Build Config') {
-            steps {
-                withCredentials([file(credentialsId: 'cloudbuild-config', variable: 'CLOUD_BUILD_CONFIG')]) {
-                    sh 'cp $CLOUD_BUILD_CONFIG ./cloudbuild.yaml'
-                }
-            }
+  agent any
+  environment {
+      HADOOP_MASTER_IP = "10.138.0.5"               // 从 Terraform 输出中获取
+      HADOOP_USER = "hadoop"                                   // Hadoop 用户名
+      SONAR_TOKEN = credentials('SonarQubeToken')                  // Jenkins 凭据中存储的 SonarQube token
+      GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905"   // GCS 存储桶名称
+      PROJECT_ID = "project-440905"                                // Google Cloud 项目 ID
+      HADOOP_CLUSTER_NAME = "hadoop-cluster"            // Dataproc 集群名称
+      HADOOP_REGION = "us-west1"                                 // Dataproc 集群区域
+  }
+  options {
+    buildDiscarder(logRotator(numToKeepStr: '5'))
+  }
+  stages {
+    stage('Code Quality Scan') {
+      steps {
+        withCredentials([string(credentialsId: 'SonarQubeToken', variable: 'SONAR_TOKEN')]) {
+          withSonarQubeEnv('SonarQube') { 
+            sh '''
+              ./mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar \
+                -Dsonar.projectKey="javawebapp" \
+                -Dsonar.token="$SONAR_TOKEN"
+            '''
+          }
         }
-        stage('Trigger Google Cloud Build') {
-            steps {
-                withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                    sh '''
-                    gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
-                    gcloud config set project ${PROJECT_ID}
+      }
+    }
+    
+    stage('Authenticate and Run Hadoop Job on Dataproc') {
+      steps {
+        script {
+          docker.image('google/cloud-sdk:latest').inside('-u root') {
+            withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+              sh '''
+                # 认证并配置 gcloud
+                gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+                gcloud config set project ${PROJECT_ID}
 
-                    # 提交 Cloud Build
-                    gcloud builds submit --config=cloudbuild.yaml .
-                    '''
-                }
+                # 提交 Hadoop 作业到 Dataproc 集群
+                gcloud dataproc jobs submit hadoop \
+                  --cluster=${HADOOP_CLUSTER_NAME} \
+                  --region=${HADOOP_REGION} \
+                  --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
+                  -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
+                  gs://${GCS_BUCKET_NAME}/output/
+
+                # 显示 Hadoop 作业的结果
+                gcloud dataproc fs cat gs://${GCS_BUCKET_NAME}/output/part-*
+              '''
             }
+          }
         }
+      }
     }
+
+    stage('Deploy to Hadoop Cluster') {
+      when {
+        expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+      }
+      steps {
+        script {
+          docker.image('google/cloud-sdk:latest').inside('-u root') {
+            withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+              sh '''
+                # 再次提交 Hadoop 作业（如果需要的话）
+                gcloud dataproc jobs submit hadoop \
+                  --cluster=${HADOOP_CLUSTER_NAME} \
+                  --region=${HADOOP_REGION} \
+                  --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
+                  -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
+                  gs://${GCS_BUCKET_NAME}/output/
+              '''
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 
