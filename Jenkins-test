@@ -1,32 +1,39 @@
 pipeline {
     agent any
     environment {
-        GCLOUD_VM_IP = "34.127.117.116"  // 替换为你的 Google Cloud VM 外部 IP
+        GCLOUD_VM_IP = "34.127.117.116"           // 替换为你的 Google Cloud VM 外部 IP 地址
+        PROJECT_ID = "project-440905"              // 替换为你的 Google Cloud 项目 ID
+        GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905" // 替换为你的 GCS 存储桶名称
+        HADOOP_CLUSTER_NAME = "hadoop-cluster"     // Dataproc 集群名称
+        HADOOP_REGION = "us-west1"                 // Dataproc 集群区域
+        SSH_USER = "jenkins-user"                  // 替换为你实际的 SSH 用户名
     }
     stages {
-        stage('Run Commands on GCP VM') {
+        stage('Run Hadoop Job on GCP VM') {
             steps {
                 // 使用 Jenkins 中的 SSH 凭据连接到 GCP VM
-                withCredentials([sshUserPrivateKey(credentialsId: 'gcp-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'gcp-ssh-key', keyFileVariable: 'SSH_KEY'),
+                    file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
+                ]) {
                     sh '''
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${GCLOUD_VM_IP} << EOF
                     echo "Successfully connected to GCP VM"
 
-                    # 在这里运行你想要执行的命令。例如：
-                    # 激活 Google Cloud 服务账户（需提前上传服务账户凭据文件）
-                    gcloud auth activate-service-account --key-file=/path/to/service-account.json
-                    gcloud config set project project-440905
+                    # 激活 Google Cloud 服务账户
+                    gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+                    gcloud config set project ${PROJECT_ID}
 
                     # 提交 Hadoop 作业到 Dataproc
                     gcloud dataproc jobs submit hadoop \
-                      --cluster=hadoop-cluster \
-                      --region=us-west1 \
-                      --jar gs://hadoop-storage-bucket-project-440905/wordcount-1.0-SNAPSHOT.jar \
-                      -- wordcount gs://hadoop-storage-bucket-project-440905/input/input.txt \
-                      gs://hadoop-storage-bucket-project-440905/output/
+                      --cluster=${HADOOP_CLUSTER_NAME} \
+                      --region=${HADOOP_REGION} \
+                      --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
+                      -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
+                      gs://${GCS_BUCKET_NAME}/output/
 
                     # 显示 Hadoop 作业结果
-                    gsutil cat gs://hadoop-storage-bucket-project-440905/output/part-*
+                    gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
                     EOF
                     '''
                 }
@@ -34,6 +41,7 @@ pipeline {
         }
     }
 }
+
 
 
 
