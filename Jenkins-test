@@ -26,6 +26,15 @@ pipeline {
         }
       }
     }
+    stage('Install Python') {
+        steps {
+            sh '''
+            # 安装 Python
+            apt-get update && apt-get install -y python3
+            ln -s /usr/bin/python3 /usr/bin/python  # 创建 python 的符号链接
+            '''
+        }
+    }
     stage('Install Google Cloud SDK') {
         steps {
             sh '''
