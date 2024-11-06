@@ -1,26 +1,22 @@
 pipeline {
     agent any
     environment {
-        GCLOUD_VM_IP = "34.127.117.116"           // 替换为你的 Google Cloud VM 外部 IP 地址
-        PROJECT_ID = "project-440905"              // 替换为你的 Google Cloud 项目 ID
+        HADOOP_IP = "34.169.41.151"                    // 替换为你的 Hadoop 实例的外部 IP 地址
+        SSH_USER = "google_compute_engine"              // 替换为你的 SSH 用户名
+        PROJECT_ID = "project-440905"                   // 替换为你的 GCP 项目 ID
         GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905" // 替换为你的 GCS 存储桶名称
-        HADOOP_CLUSTER_NAME = "hadoop-cluster"     // Dataproc 集群名称
-        HADOOP_REGION = "us-west1"                 // Dataproc 集群区域
-        SSH_USER = "jenkins-user"                  // 替换为你实际的 SSH 用户名
+        HADOOP_CLUSTER_NAME = "hadoop-cluster"          // Dataproc 集群名称
+        HADOOP_REGION = "us-west1"                      // Dataproc 集群区域
     }
     stages {
-        stage('Run Hadoop Job on GCP VM') {
+        stage('SSH into Hadoop VM and Run Job') {
             steps {
-                // 使用 Jenkins 中的 SSH 凭据连接到 GCP VM
-                withCredentials([
-                    sshUserPrivateKey(credentialsId: 'gcp-ssh-key', keyFileVariable: 'SSH_KEY'),
-                    file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
-                ]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh '''
-                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${GCLOUD_VM_IP} << EOF
-                    echo "Successfully connected to GCP VM"
+                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
+                    echo "Successfully connected to Hadoop VM"
 
-                    # 激活 Google Cloud 服务账户
+                    # 执行 Hadoop 或其他任务
                     gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
                     gcloud config set project ${PROJECT_ID}
 
@@ -41,6 +37,7 @@ pipeline {
         }
     }
 }
+
 
 
 
