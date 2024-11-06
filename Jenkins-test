@@ -1,82 +1,40 @@
 pipeline {
-  agent any
-  environment {
-      HADOOP_MASTER_IP = "10.138.0.5"               // 从 Terraform 输出中获取
-      HADOOP_USER = "hadoop"                                   // Hadoop 用户名
-      SONAR_TOKEN = credentials('SonarQubeToken')                  // Jenkins 凭据中存储的 SonarQube token
-      GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905"   // GCS 存储桶名称
-      PROJECT_ID = "project-440905"                                // Google Cloud 项目 ID
-      HADOOP_CLUSTER_NAME = "hadoop-cluster"            // Dataproc 集群名称
-      HADOOP_REGION = "us-west1"                                 // Dataproc 集群区域
-  }
-  options {
-    buildDiscarder(logRotator(numToKeepStr: '5'))
-  }
-  stages {
-    stage('Code Quality Scan') {
-      steps {
-        withCredentials([string(credentialsId: 'SonarQubeToken', variable: 'SONAR_TOKEN')]) {
-          withSonarQubeEnv('SonarQube') { 
-            sh '''
-              ./mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar \
-                -Dsonar.projectKey="javawebapp" \
-                -Dsonar.token="$SONAR_TOKEN"
-            '''
-          }
-        }
-      }
+    agent any
+    environment {
+        GCLOUD_VM_IP = "34.127.117.116"  // 替换为你的 Google Cloud VM 外部 IP
     }
-    
-    stage('Authenticate and Run Hadoop Job on Dataproc') {
-      steps {
-        script {
-          docker.image('google/cloud-sdk:latest').inside('-u root') {
-            withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-              sh '''
-                # 认证并配置 gcloud
-                gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
-                gcloud config set project ${PROJECT_ID}
+    stages {
+        stage('Run Commands on GCP VM') {
+            steps {
+                // 使用 Jenkins 中的 SSH 凭据连接到 GCP VM
+                withCredentials([sshUserPrivateKey(credentialsId: 'gcp-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                    sh '''
+                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${GCLOUD_VM_IP} << EOF
+                    echo "Successfully connected to GCP VM"
 
-                # 提交 Hadoop 作业到 Dataproc 集群
-                gcloud dataproc jobs submit hadoop \
-                  --cluster=${HADOOP_CLUSTER_NAME} \
-                  --region=${HADOOP_REGION} \
-                  --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
-                  -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
-                  gs://${GCS_BUCKET_NAME}/output/
+                    # 在这里运行你想要执行的命令。例如：
+                    # 激活 Google Cloud 服务账户（需提前上传服务账户凭据文件）
+                    gcloud auth activate-service-account --key-file=/path/to/service-account.json
+                    gcloud config set project project-440905
 
-                # 显示 Hadoop 作业的结果
-                gcloud dataproc fs cat gs://${GCS_BUCKET_NAME}/output/part-*
-              '''
+                    # 提交 Hadoop 作业到 Dataproc
+                    gcloud dataproc jobs submit hadoop \
+                      --cluster=hadoop-cluster \
+                      --region=us-west1 \
+                      --jar gs://hadoop-storage-bucket-project-440905/wordcount-1.0-SNAPSHOT.jar \
+                      -- wordcount gs://hadoop-storage-bucket-project-440905/input/input.txt \
+                      gs://hadoop-storage-bucket-project-440905/output/
+
+                    # 显示 Hadoop 作业结果
+                    gsutil cat gs://hadoop-storage-bucket-project-440905/output/part-*
+                    EOF
+                    '''
+                }
             }
-          }
         }
-      }
     }
-
-    stage('Deploy to Hadoop Cluster') {
-      when {
-        expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-      }
-      steps {
-        script {
-          docker.image('google/cloud-sdk:latest').inside('-u root') {
-            withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-              sh '''
-                # 再次提交 Hadoop 作业（如果需要的话）
-                gcloud dataproc jobs submit hadoop \
-                  --cluster=${HADOOP_CLUSTER_NAME} \
-                  --region=${HADOOP_REGION} \
-                  --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
-                  -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
-                  gs://${GCS_BUCKET_NAME}/output/
-              '''
-            }
-          }
-        }
-      }
-    }
-  }
 }
+
+
 
 
