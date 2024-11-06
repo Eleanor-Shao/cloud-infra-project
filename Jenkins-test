@@ -1,10 +1,5 @@
 pipeline {
-  agent {
-      docker {
-          image 'google/cloud-sdk:latest'  // 使用包含 gcloud 和 Python 的官方 Google Cloud SDK 镜像
-          args '-u root'  // 使用 root 用户，确保有安装权限
-      }
-  }
+  agent any
   environment {
       HADOOP_MASTER_IP = "10.138.0.5"               // 从 Terraform 输出中获取
       HADOOP_USER = "hadoop"                                   // Hadoop 用户名
@@ -31,6 +26,29 @@ pipeline {
         }
       }
     }
+    stage('Authenticate and Run Dataproc Job') {
+      steps {
+          script {
+              docker.image('google/cloud-sdk:latest').inside('-u root') {
+                  withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                      sh '''
+                      gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+                      gcloud config set project ${PROJECT_ID}
+
+                      gcloud dataproc jobs submit hadoop \
+                      --cluster=${HADOOP_CLUSTER_NAME} \
+                      --region=${REGION} \
+                      --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
+                      -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
+                      gs://${GCS_BUCKET_NAME}/output/
+
+                      gcloud dataproc fs cat gs://${GCS_BUCKET_NAME}/output/part-*
+                      '''
+                  }
+              }
+          }
+      }
+    }  
     
     stage('Authenticate with Google Cloud') {
         steps {
