@@ -15,20 +15,20 @@ pipeline {
                     sh """
                         ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
                         echo "Successfully connected to Hadoop VM"
-                    
-                        # Authenticate and configure gcloud
+    
+                        # 执行 Hadoop 或其他任务
                         gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
                         gcloud config set project ${PROJECT_ID}
-                    
-                        # Submit Hadoop job to Dataproc
+    
+                        # 提交 Hadoop 作业到 Dataproc
                         gcloud dataproc jobs submit hadoop \
                           --cluster=${HADOOP_CLUSTER_NAME} \
                           --region=${HADOOP_REGION} \
                           --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
                           -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
                           gs://${GCS_BUCKET_NAME}/output/
-                    
-                        # Display Hadoop job results
+    
+                        # 显示 Hadoop 作业结果
                         gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
                         EOF
                     """
