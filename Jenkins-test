@@ -1,14 +1,19 @@
 pipeline {
-  agent any
-    environment {
-        HADOOP_MASTER_IP = "10.138.0.5"               // 从 Terraform 输出中获取
-        HADOOP_USER = "hadoop"                                   // Hadoop 用户名
-        SONAR_TOKEN = credentials('SonarQubeToken')                  // Jenkins 凭据中存储的 SonarQube token
-        GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905"   // GCS 存储桶名称
-        PROJECT_ID = "project-440905"                                // Google Cloud 项目 ID
-        HADOOP_CLUSTER_NAME = "hadoop-cluster"            // Dataproc 集群名称
-        HADOOP_REGION = "us-west1"                                 // Dataproc 集群区域
-    }
+  agent {
+      docker {
+          image 'google/cloud-sdk:latest'  // 使用包含 gcloud 和 Python 的官方 Google Cloud SDK 镜像
+          args '-u root'  // 使用 root 用户，确保有安装权限
+      }
+  }
+  environment {
+      HADOOP_MASTER_IP = "10.138.0.5"               // 从 Terraform 输出中获取
+      HADOOP_USER = "hadoop"                                   // Hadoop 用户名
+      SONAR_TOKEN = credentials('SonarQubeToken')                  // Jenkins 凭据中存储的 SonarQube token
+      GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905"   // GCS 存储桶名称
+      PROJECT_ID = "project-440905"                                // Google Cloud 项目 ID
+      HADOOP_CLUSTER_NAME = "hadoop-cluster"            // Dataproc 集群名称
+      HADOOP_REGION = "us-west1"                                 // Dataproc 集群区域
+  }
   options {
     buildDiscarder(logRotator(numToKeepStr: '5'))
   }
@@ -26,25 +31,7 @@ pipeline {
         }
       }
     }
-    stage('Install Python') {
-        steps {
-            sh '''
-            sudo apt-get update
-            sudo apt-get install -y python3
-            sudo ln -s /usr/bin/python3 /usr/bin/python
-            '''
-        }
-    }
-    stage('Install Google Cloud SDK') {
-        steps {
-            sh '''
-            curl https://sdk.cloud.google.com | bash
-            exec -l $SHELL
-            gcloud components install -q
-            gcloud init
-            '''
-        }
-    }
+    
     stage('Authenticate with Google Cloud') {
         steps {
             withCredentials([file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
