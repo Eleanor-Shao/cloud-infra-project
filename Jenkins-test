@@ -35,33 +35,34 @@ pipeline {
                 '''
             }
         }
-        stage('SSH into Hadoop VM and Run Job') {
+        stage('SSH into Hadoop VM and Upload Files') {
             steps {
                 withCredentials([
                     sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY'),
                     file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
                 ]) {
-                    // 将 Google 凭据文件上传到远程服务器
-                    sh '''
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/gcp-service-account.json
-                    '''
-                    // SSH 进入服务器并使用上传的凭据文件
+                    // 通过 SSH 连接到 Hadoop VM
                     sh '''
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
                     echo "Successfully connected to Hadoop VM"
+                    
+                    # 将 Google Cloud 凭证文件传输到远程服务器
+                    echo "Uploading Google credentials to VM..."
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/gcp-service-account.json
+                    
+                    # 上传 Mapper 和 Reducer 文件
+                    echo "Uploading Mapper and Reducer to VM..."
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/mapper.py
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/reducer.py
 
+                    # 在 Hadoop VM 上激活 Google Cloud 凭证
                     gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
+                    
+                    # 将 Mapper 和 Reducer 上传到 GCS
+                    gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
+                    gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
 
-                    # 提交 Hadoop 作业到 Dataproc，使用新的 mapper 和 reducer
-                    hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
-                      -files gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
-                      -mapper "python3 mapper.py" -reducer "python3 reducer.py" \
-                      -input gs://${GCS_BUCKET_NAME}/input/input.txt \
-                      -output gs://${GCS_BUCKET_NAME}/output
-
-                    # 显示 Hadoop 作业结果
-                    gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
                     EOF
                     '''
                 }
