@@ -26,13 +26,13 @@ pipeline {
 
                         // Upload Google credentials to VM in /tmp directory
                         sh '''
-                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:~/gcp-service-account.json
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/gcp-service-account.json
                         '''
 
                         // Upload Mapper and Reducer files to /tmp directory on VM
                         sh '''
-                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:~/mapper.py
-                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:~/reducer.py
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/mapper.py
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/reducer.py
                         '''
                     }
                 }
@@ -51,8 +51,8 @@ pipeline {
                     gcloud config set project ${PROJECT_ID}
                     
                     # Upload Mapper and Reducer to GCS bucket
-                    gsutil cp ~/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
-                    gsutil cp ~/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
+                    gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
+                    gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
 
                     # Submit the Hadoop job on Dataproc using the Mapper and Reducer scripts in GCS
                     gcloud dataproc jobs submit hadoop \
