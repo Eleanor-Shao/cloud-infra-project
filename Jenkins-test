@@ -23,6 +23,10 @@ pipeline {
                 ]) {
                     script {
                         echo "Connecting to Hadoop VM and uploading files..."
+                        // Remove existing files before copying
+                        sh """
+                        ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} 'rm -f /home/${SSH_USER}/gcp-service-account.json /home/${SSH_USER}/mapper.py /home/${SSH_USER}/reducer.py'
+                        """
 
                         // Upload Google credentials to VM in /tmp directory
                         sh '''
