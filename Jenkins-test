@@ -11,50 +11,60 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/main']], userRemoteConfigs: [[url: 'https://github.com/Eleanor-Shao/cloud-infra-project']]])
+                checkout([$class: 'GitSCM', branches: [[name: '*/main']], 
+                          userRemoteConfigs: [[url: 'https://github.com/Eleanor-Shao/cloud-infra-project']]])
             }
         }
-        stage('Scan') {
-            steps {
-                withCredentials([string(credentialsId: 'SonarQubeToken', variable: 'SONAR_TOKEN')]) {
-                    withSonarQubeEnv('SonarQube') { 
-                        sh '''
-                        ./mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar \
-                            -Dsonar.projectKey="mapper-reducer-scan" \
-                            -Dsonar.sources=mapper.py,reducer.py \
-                            -Dsonar.language=py \
-                            -Dsonar.token="$SONAR_TOKEN"
-                        '''
-                    }
-                }
-            }
-        }
-
         stage('SSH into Hadoop VM and Upload Files') {
             steps {
                 withCredentials([
                     sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY'),
                     file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
                 ]) {
-                    // SSH into Hadoop VM and upload files
+                    script {
+                        echo "Connecting to Hadoop VM and uploading files..."
+
+                        // Upload Google credentials to VM in /tmp directory
+                        sh '''
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/tmp/gcp-service-account.json
+                        '''
+
+                        // Upload Mapper and Reducer files to /tmp directory on VM
+                        sh '''
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:/tmp/mapper.py
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:/tmp/reducer.py
+                        '''
+                    }
+                }
+            }
+        }
+        stage('Submit Hadoop Job') {
+            steps {
+                withCredentials([sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                    // SSH into Hadoop VM and submit the Hadoop job using the files in /tmp
                     sh '''
-                    echo "Connecting to Hadoop VM and uploading files..."
-        
-                    # Upload Google credentials to VM
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/gcp-service-account.json
-                    
-                    # Upload Mapper and Reducer files
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/mapper.py
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/reducer.py
-        
-                    # Connect to the VM and activate credentials
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
-                        gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
-                        gcloud config set project ${PROJECT_ID}
-        
-                        # Upload Mapper and Reducer to GCS
-                        gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
-                        gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
+                    echo "Successfully connected to Hadoop VM"
+                    
+                    # Activate Google Cloud credentials on the VM
+                    gcloud auth activate-service-account --key-file=/tmp/gcp-service-account.json
+                    gcloud config set project ${PROJECT_ID}
+                    
+                    # Upload Mapper and Reducer to GCS bucket
+                    gsutil cp /tmp/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
+                    gsutil cp /tmp/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
+
+                    # Submit the Hadoop job on Dataproc using the Mapper and Reducer scripts in GCS
+                    gcloud dataproc jobs submit hadoop \
+                      --cluster=${HADOOP_CLUSTER_NAME} \
+                      --region=${HADOOP_REGION} \
+                      --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
+                      -- mapper gs://${GCS_BUCKET_NAME}/mapper.py \
+                      -- reducer gs://${GCS_BUCKET_NAME}/reducer.py \
+                      gs://${GCS_BUCKET_NAME}/input/input.txt gs://${GCS_BUCKET_NAME}/output/
+
+                    # Display the job results from GCS output folder
+                    gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
                     EOF
                     '''
                 }
