@@ -16,13 +16,13 @@ pipeline {
                     file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
                 ]) {
                     sh '''
+                    echo "GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}"
+        
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
                     echo "Successfully connected to Hadoop VM"
-        
-                    # 执行 Hadoop 或其他任务
                     echo "GOOGLE_APPLICATION_CREDENTIALS file path: ${GOOGLE_APPLICATION_CREDENTIALS}"
                     ls -l ${GOOGLE_APPLICATION_CREDENTIALS}
-                    
+        
                     gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
                     gcloud config set project ${PROJECT_ID}
         
@@ -41,6 +41,7 @@ pipeline {
                 }
             }
         }
+
 
     }
 }
