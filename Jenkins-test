@@ -47,9 +47,9 @@ pipeline {
                     
                     # 上传 Mapper 和 Reducer 文件
                     echo "Uploading Mapper and Reducer to VM..."
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/mapper.py
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/reducer.py
-
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${WORKSPACE}/mapper.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/mapper.py
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${WORKSPACE}/reducer.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/reducer.py
+        
                     # 在 Hadoop VM 上激活 Google Cloud 凭证
                     gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
@@ -57,7 +57,7 @@ pipeline {
                     # 将 Mapper 和 Reducer 上传到 GCS
                     gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
                     gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
-
+        
                     EOF
                     '''
                 }
