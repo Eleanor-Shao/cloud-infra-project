@@ -67,7 +67,7 @@ pipeline {
                       -- -files=gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
                       -mapper="python3 mapper.py" \
                       -reducer="python3 reducer.py" \
-                      -input=gs://${GCS_BUCKET_NAME}/input/ \
+                      -input=gs://${GCS_BUCKET_NAME}/input/data/* \
                       -output=gs://${GCS_BUCKET_NAME}/output/
 
                     # Display the job results from GCS output folder
