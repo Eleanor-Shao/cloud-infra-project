@@ -58,10 +58,13 @@ pipeline {
                     gcloud dataproc jobs submit hadoop \
                       --cluster=${HADOOP_CLUSTER_NAME} \
                       --region=${HADOOP_REGION} \
-                      --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
-                      -- mapper gs://${GCS_BUCKET_NAME}/mapper.py \
-                      -- reducer gs://${GCS_BUCKET_NAME}/reducer.py \
-                      gs://${GCS_BUCKET_NAME}/input/input.txt gs://${GCS_BUCKET_NAME}/output/
+                      --project=${PROJECT_ID} \
+                      --jar=file:///usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
+                      -- -files=gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
+                      -mapper="python3 mapper.py" \
+                      -reducer="python3 reducer.py" \
+                      -input=gs://${GCS_BUCKET_NAME}/input/input.txt \
+                      -output=gs://${GCS_BUCKET_NAME}/output/
 
                     # Display the job results from GCS output folder
                     gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
