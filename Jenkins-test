@@ -46,34 +46,34 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     // SSH into Hadoop VM and submit the Hadoop job using the files in /tmp
-                    sh '''
+                    sh """
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
                     echo "Successfully connected to Hadoop VM"
-                    
+
                     # Activate Google Cloud credentials on the VM
                     gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
-                    
+
                     # Upload Mapper and Reducer to GCS bucket
                     gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
                     gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
 
                     # Submit the Hadoop job on Dataproc using the Mapper and Reducer scripts in GCS
                     gcloud dataproc jobs submit hadoop \
-                      --cluster=${HADOOP_CLUSTER_NAME} \
-                      --region=${HADOOP_REGION} \
-                      --project=${PROJECT_ID} \
-                      --jar=file:///usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
-                      -- -files=gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
-                      -mapper="python3 mapper.py" \
-                      -reducer="python3 reducer.py" \
-                      -input=gs://${GCS_BUCKET_NAME}/input/data/* \
-                      -output=gs://${GCS_BUCKET_NAME}/output/
+                    --cluster=${HADOOP_CLUSTER_NAME} \
+                    --region=${HADOOP_REGION} \
+                    --project=${PROJECT_ID} \
+                    --jar=file:///usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
+                    -- -files=gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
+                    -mapper="python3 mapper.py" \
+                    -reducer="python3 reducer.py" \
+                    -input=gs://${GCS_BUCKET_NAME}/input/data/* \
+                    -output=gs://${GCS_BUCKET_NAME}/output/
 
                     # Display the job results from GCS output folder
                     gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
                     EOF
-                    '''
+                                """
                 }
             }
         }
