@@ -27,14 +27,6 @@ pipeline {
                 }
             }
         }
-        stage('Upload Mapper and Reducer to GCS') {
-            steps {
-                sh '''
-                gsutil cp mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
-                gsutil cp reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
-                '''
-            }
-        }
         stage('SSH into Hadoop VM and Upload Files') {
             steps {
                 withCredentials([
