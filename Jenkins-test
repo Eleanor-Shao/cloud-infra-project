@@ -51,7 +51,7 @@ pipeline {
                     echo "Successfully connected to Hadoop VM"
                     
                     # Activate Google Cloud credentials on the VM
-                    gcloud auth activate-service-account --key-file=~/gcp-service-account.json
+                    gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
                     
                     # Upload Mapper and Reducer to GCS bucket
