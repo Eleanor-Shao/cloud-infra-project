@@ -15,15 +15,17 @@ pipeline {
                     sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY'),
                     file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
                 ]) {
+                    // 将 Google 凭据文件上传到远程服务器
                     sh '''
-                    echo "GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}"
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/gcp-service-account.json
+                    '''
         
+                    // SSH 进入服务器并使用上传的凭据文件
+                    sh '''
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
                     echo "Successfully connected to Hadoop VM"
-                    echo "GOOGLE_APPLICATION_CREDENTIALS file path: ${GOOGLE_APPLICATION_CREDENTIALS}"
-                    ls -l ${GOOGLE_APPLICATION_CREDENTIALS}
         
-                    gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+                    gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
         
                     # 提交 Hadoop 作业到 Dataproc
