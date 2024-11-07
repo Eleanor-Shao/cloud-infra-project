@@ -2,13 +2,39 @@ pipeline {
     agent any
     environment {
         HADOOP_IP = "34.169.41.151"                    // 替换为你的 Hadoop 实例的外部 IP 地址
-        SSH_USER = "shaoxiaowen"              // 替换为你的 SSH 用户名
-        PROJECT_ID = "project-440905"                   // 替换为你的 GCP 项目 ID
+        SSH_USER = "shaoxiaowen"                       // 替换为你的 SSH 用户名
+        PROJECT_ID = "project-440905"                  // 替换为你的 GCP 项目 ID
         GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905" // 替换为你的 GCS 存储桶名称
-        HADOOP_CLUSTER_NAME = "hadoop-cluster"          // Dataproc 集群名称
-        HADOOP_REGION = "us-west1"                      // Dataproc 集群区域
+        HADOOP_CLUSTER_NAME = "hadoop-cluster"         // Dataproc 集群名称
+        HADOOP_REGION = "us-west1"                     // Dataproc 集群区域
     }
     stages {
+        stage('Checkout Code') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/main']], userRemoteConfigs: [[url: 'https://github.com/your-repo']]])
+            }
+        }
+        stage('Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'SonarQubeToken', variable: 'SONAR_TOKEN')]) {
+                    withSonarQubeEnv('SonarQube') { 
+                        sh '''
+                        ./mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar \
+                            -Dsonar.projectKey="javawebapp" \
+                            -Dsonar.token="$SONAR_TOKEN"
+                        '''
+                    }
+                }
+            }
+        }
+        stage('Upload Mapper and Reducer to GCS') {
+            steps {
+                sh '''
+                gsutil cp mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
+                gsutil cp reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
+                '''
+            }
+        }
         stage('SSH into Hadoop VM and Run Job') {
             steps {
                 withCredentials([
@@ -19,23 +45,21 @@ pipeline {
                     sh '''
                     scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/gcp-service-account.json
                     '''
-        
                     // SSH 进入服务器并使用上传的凭据文件
                     sh '''
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
                     echo "Successfully connected to Hadoop VM"
-        
+
                     gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
-        
-                    # 提交 Hadoop 作业到 Dataproc
-                    gcloud dataproc jobs submit hadoop \
-                      --cluster=${HADOOP_CLUSTER_NAME} \
-                      --region=${HADOOP_REGION} \
-                      --jar gs://${GCS_BUCKET_NAME}/wordcount-1.0-SNAPSHOT.jar \
-                      -- wordcount gs://${GCS_BUCKET_NAME}/input/input.txt \
-                      gs://${GCS_BUCKET_NAME}/output/
-        
+
+                    # 提交 Hadoop 作业到 Dataproc，使用新的 mapper 和 reducer
+                    hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
+                      -files gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
+                      -mapper "python3 mapper.py" -reducer "python3 reducer.py" \
+                      -input gs://${GCS_BUCKET_NAME}/input/input.txt \
+                      -output gs://${GCS_BUCKET_NAME}/output
+
                     # 显示 Hadoop 作业结果
                     gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
                     EOF
@@ -43,13 +67,6 @@ pipeline {
                 }
             }
         }
-
-
     }
 }
-
-
-
-
-
 
