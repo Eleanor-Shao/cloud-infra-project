@@ -36,33 +36,31 @@ pipeline {
                     sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY'),
                     file(credentialsId: 'gcp-service-account-json', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
                 ]) {
-                    // 通过 SSH 连接到 Hadoop VM
+                    // SSH into Hadoop VM and upload files
                     sh '''
-                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
-                    echo "Successfully connected to Hadoop VM"
-                    
-                    # 将 Google Cloud 凭证文件传输到远程服务器
-                    echo "Uploading Google credentials to VM..."
+                    echo "Connecting to Hadoop VM and uploading files..."
+        
+                    # Upload Google credentials to VM
                     scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/gcp-service-account.json
                     
-                    # 上传 Mapper 和 Reducer 文件
-                    echo "Uploading Mapper and Reducer to VM..."
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${WORKSPACE}/mapper.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/mapper.py
-                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${WORKSPACE}/reducer.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/reducer.py
+                    # Upload Mapper and Reducer files
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/mapper.py
+                    scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:/home/${SSH_USER}/reducer.py
         
-                    # 在 Hadoop VM 上激活 Google Cloud 凭证
-                    gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
-                    gcloud config set project ${PROJECT_ID}
-                    
-                    # 将 Mapper 和 Reducer 上传到 GCS
-                    gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
-                    gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
+                    # Connect to the VM and activate credentials
+                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${HADOOP_IP} << EOF
+                        gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
+                        gcloud config set project ${PROJECT_ID}
         
+                        # Upload Mapper and Reducer to GCS
+                        gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
+                        gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
                     EOF
                     '''
                 }
             }
         }
+
     }
 }
 
