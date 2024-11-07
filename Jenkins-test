@@ -26,13 +26,13 @@ pipeline {
 
                         // Upload Google credentials to VM in /tmp directory
                         sh '''
-                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:/tmp/gcp-service-account.json
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no ${GOOGLE_APPLICATION_CREDENTIALS} ${SSH_USER}@${HADOOP_IP}:~/gcp-service-account.json
                         '''
 
                         // Upload Mapper and Reducer files to /tmp directory on VM
                         sh '''
-                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:/tmp/mapper.py
-                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:/tmp/reducer.py
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no mapper.py ${SSH_USER}@${HADOOP_IP}:~/mapper.py
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no reducer.py ${SSH_USER}@${HADOOP_IP}:~/reducer.py
                         '''
                     }
                 }
@@ -47,12 +47,12 @@ pipeline {
                     echo "Successfully connected to Hadoop VM"
                     
                     # Activate Google Cloud credentials on the VM
-                    gcloud auth activate-service-account --key-file=/tmp/gcp-service-account.json
+                    gcloud auth activate-service-account --key-file=~/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
                     
                     # Upload Mapper and Reducer to GCS bucket
-                    gsutil cp /tmp/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
-                    gsutil cp /tmp/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
+                    gsutil cp ~/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
+                    gsutil cp ~/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
 
                     # Submit the Hadoop job on Dataproc using the Mapper and Reducer scripts in GCS
                     gcloud dataproc jobs submit hadoop \
