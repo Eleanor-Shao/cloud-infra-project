@@ -58,6 +58,15 @@ pipeline {
                 }
             }
         }
+
+        stage('Delete Existing Output Directory') {
+            steps {
+                // Delete the output directory if it exists
+                sh '''
+                    gsutil -m rm -r gs://${GCS_BUCKET_NAME}/output || true
+                '''
+            }
+        }
         stage('Submit Hadoop Job') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY')]) {
