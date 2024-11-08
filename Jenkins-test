@@ -15,6 +15,21 @@ pipeline {
                           userRemoteConfigs: [[url: 'https://github.com/Eleanor-Shao/cloud-infra-project']]])
             }
         }
+        stage('Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'SonarQubeToken', variable: 'SONAR_TOKEN')]) {
+                    withSonarQubeEnv('SonarQube') { 
+                        sh '''
+                        ./mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar \
+                            -Dsonar.projectKey="mapper-reducer-scan" \
+                            -Dsonar.sources=mapper.py,reducer.py \
+                            -Dsonar.language=py \
+                            -Dsonar.token="$SONAR_TOKEN"
+                        '''
+                    }
+                }
+            }
+        }
         stage('SSH into Hadoop VM and Upload Files') {
             steps {
                 withCredentials([
