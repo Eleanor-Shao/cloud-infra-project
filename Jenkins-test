@@ -95,8 +95,8 @@ pipeline {
                     # Display the job results from GCS output folder
                     gsutil cat gs://${GCS_BUCKET_NAME}/output/* > merged-output
                     cat merged-output
-                    EOF
-                                """
+
+                    """
                 }
             }
         }
