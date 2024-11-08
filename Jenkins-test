@@ -4,7 +4,7 @@ pipeline {
         HADOOP_IP = "34.169.38.201"                    // 替换为你的 Hadoop 实例的外部 IP 地址
         SSH_USER = "shaoxiaowen"                       // 替换为你的 SSH 用户名
         PROJECT_ID = "project-440905"                  // 替换为你的 GCP 项目 ID
-        GCS_BUCKET_NAME = "hadoop-storage-bucket-project-440905" // 替换为你的 GCS 存储桶名称
+        GCS_BUCKET_NAME = "dataproc-staging-us-west1-1005992234854-lyqmdmtz" // 替换为你的 GCS 存储桶名称
         HADOOP_CLUSTER_NAME = "hadoop-cluster"         // Dataproc 集群名称
         HADOOP_REGION = "us-west1"                     // Dataproc 集群区域
     }
