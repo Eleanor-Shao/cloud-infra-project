@@ -15,6 +15,7 @@ pipeline {
                           userRemoteConfigs: [[url: 'https://github.com/Eleanor-Shao/cloud-infra-project']]])
             }
         }
+
         stage('Scan') {
             steps {
                 withCredentials([string(credentialsId: 'SonarQubeToken', variable: 'SONAR_TOKEN')]) {
