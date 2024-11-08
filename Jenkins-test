@@ -81,8 +81,8 @@ pipeline {
                     --project=${PROJECT_ID} \
                     --jar=file:///usr/lib/hadoop/hadoop-streaming.jar \
                     -- -files=gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
-                    -mapper"python3 mapper.py" \
-                    -reducer"python3 reducer.py" \
+                    -mapper "python3 mapper.py" \
+                    -reducer "python3 reducer.py" \
                     -input=gs://${GCS_BUCKET_NAME}/input/data/* \
                     -output=gs://${GCS_BUCKET_NAME}/output/
 
