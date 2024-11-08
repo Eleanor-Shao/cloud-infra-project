@@ -59,11 +59,12 @@ pipeline {
                     gsutil cp /home/${SSH_USER}/reducer.py gs://${GCS_BUCKET_NAME}/reducer.py
 
                     # Submit the Hadoop job on Dataproc using the Mapper and Reducer scripts in GCS
+                    
                     gcloud dataproc jobs submit hadoop \
                     --cluster=${HADOOP_CLUSTER_NAME} \
                     --region=${HADOOP_REGION} \
                     --project=${PROJECT_ID} \
-                    --jar=file:///usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
+                    --jar=file:///usr/lib/hadoop/hadoop-streaming.jar \
                     -- -files=gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
                     -mapper="python3 mapper.py" \
                     -reducer="python3 reducer.py" \
