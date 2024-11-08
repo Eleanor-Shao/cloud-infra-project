@@ -5,6 +5,7 @@ max_temperatures = {}
 
 for line in sys.stdin:
     line = line.strip()
+    print("This is the final project demo")
     # Split the line into yearMonthDay and temperature
     yearMonthDay, temperature = line.split('\t', 1)
     temperature = int(temperature)
