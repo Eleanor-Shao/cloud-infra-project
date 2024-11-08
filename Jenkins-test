@@ -90,11 +90,13 @@ pipeline {
                     --region=${HADOOP_REGION} \
                     --project=${PROJECT_ID} \
                     --jar=file:///usr/lib/hadoop/hadoop-streaming.jar \
-                    -- -files=gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
+                    -- \
+                    -files gs://${GCS_BUCKET_NAME}/mapper.py,gs://${GCS_BUCKET_NAME}/reducer.py \
                     -mapper "python3 mapper.py" \
                     -reducer "python3 reducer.py" \
-                    -input=gs://${GCS_BUCKET_NAME}/input/data/* \
-                    -output=gs://${GCS_BUCKET_NAME}/output/
+                    -input gs://${GCS_BUCKET_NAME}/input/data/* \
+                    -output gs://${GCS_BUCKET_NAME}/output/
+
 
                     # Display the job results from GCS output folder
                     gsutil cat gs://${GCS_BUCKET_NAME}/output/* > merged-output
