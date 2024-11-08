@@ -72,7 +72,8 @@ pipeline {
                     -output=gs://${GCS_BUCKET_NAME}/output/
 
                     # Display the job results from GCS output folder
-                    gsutil cat gs://${GCS_BUCKET_NAME}/output/part-*
+                    gsutil cat gs://${GCS_BUCKET_NAME}/output/* > merged-output
+                    cat merged-output
                     EOF
                                 """
                 }
