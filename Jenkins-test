@@ -59,14 +59,6 @@ pipeline {
             }
         }
 
-        stage('Delete Existing Output Directory') {
-            steps {
-                // Delete the output directory if it exists
-                sh '''
-                    gsutil -m rm -r gs://${GCS_BUCKET_NAME}/output || true
-                '''
-            }
-        }
         stage('Submit Hadoop Job') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'hadoop-new-ssh-key', keyFileVariable: 'SSH_KEY')]) {
@@ -78,6 +70,8 @@ pipeline {
                     # Activate Google Cloud credentials on the VM
                     gcloud auth activate-service-account --key-file=/home/${SSH_USER}/gcp-service-account.json
                     gcloud config set project ${PROJECT_ID}
+
+                    gsutil -m rm -r gs://${GCS_BUCKET_NAME}/output || true
 
                     # Upload Mapper and Reducer to GCS bucket
                     gsutil cp /home/${SSH_USER}/mapper.py gs://${GCS_BUCKET_NAME}/mapper.py
